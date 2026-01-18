@@ -39,6 +39,7 @@ PYBIND11_MODULE(fuzzybunny, m) {
           py::arg("candidates"),
           py::arg("scorer") = "levenshtein",
           py::arg("mode") = "full",
+          py::arg("process") = true,
           py::arg("threshold") = 0.0,
           py::arg("top_n") = -1,
           "Rank candidates against a query string. Returns list of (string, score) tuples.");
@@ -48,6 +49,7 @@ PYBIND11_MODULE(fuzzybunny, m) {
           py::arg("candidates"),
           py::arg("scorer") = "levenshtein",
           py::arg("mode") = "full",
+          py::arg("process") = true,
           py::arg("threshold") = 0.0,
           py::arg("top_n") = -1,
           "Batch match multiple queries against candidates.");

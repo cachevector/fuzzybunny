@@ -7,10 +7,28 @@
 #include <map>
 #include <iostream>
 #include <cstdint>
+#include <cwctype>
 
 namespace fuzzybunny {
 
 // --- Unicode Helper ---
+
+std::u32string normalize(const std::u32string& s) {
+    std::u32string result;
+    result.reserve(s.size());
+    for (char32_t c : s) {
+        // Lowercase and remove punctuation (basic ASCII range for now)
+        if (c < 128) {
+            if (std::iswalnum(static_cast<wint_t>(c)) || std::iswspace(static_cast<wint_t>(c))) {
+                result.push_back(static_cast<char32_t>(std::towlower(static_cast<wint_t>(c))));
+            }
+        } else {
+            // For non-ASCII, just pass through (proper unicode normalization is complex)
+            result.push_back(c);
+        }
+    }
+    return result;
+}
 
 // Converting manually because std::codecvt is deprecated in C++17
 // and we want to avoid external dependencies like ICU for this lightweight lib.
@@ -185,15 +203,22 @@ std::vector<MatchResult> rank(
     const std::vector<std::string>& candidates,
     const std::string& scorer,
     const std::string& mode,
+    bool process,
     double threshold,
     int top_n
 ) {
+    if (query.empty() || candidates.empty()) return {};
+
     std::u32string uQuery = utf8_to_u32(query);
+    if (process) uQuery = normalize(uQuery);
+
     std::vector<MatchResult> results;
     results.reserve(candidates.size());
 
     for (const auto& cand : candidates) {
         std::u32string uCand = utf8_to_u32(cand);
+        if (process) uCand = normalize(uCand);
+
         double score = 0.0;
 
         if (scorer == "levenshtein") {
@@ -233,16 +258,15 @@ std::vector<std::vector<MatchResult>> batch_match(
     const std::vector<std::string>& candidates,
     const std::string& scorer,
     const std::string& mode,
+    bool process,
     double threshold,
     int top_n
 ) {
-    std::vector<std::vector<MatchResult>> batch_results;
-    batch_results.reserve(queries.size());
+    std::vector<std::vector<MatchResult>> batch_results(queries.size());
 
-    // Simple sequential processing for now. 
-    // Future optimization: OpenMP #pragma omp parallel for
-    for (const auto& query : queries) {
-        batch_results.push_back(rank(query, candidates, scorer, mode, threshold, top_n));
+    #pragma omp parallel for if(queries.size() > 10)
+    for (int i = 0; i < static_cast<int>(queries.size()); ++i) {
+        batch_results[i] = rank(queries[i], candidates, scorer, mode, process, threshold, top_n);
     }
     return batch_results;
 }
