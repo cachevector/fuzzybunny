@@ -20,6 +20,7 @@ std::vector<MatchResult> rank(
     const std::vector<std::string>& candidates,
     const std::string& scorer = "levenshtein",
     const std::string& mode = "full",
+    bool process = true,
     double threshold = 0.0,
     int top_n = -1
 );
@@ -29,6 +30,7 @@ std::vector<std::vector<MatchResult>> batch_match(
     const std::vector<std::string>& candidates,
     const std::string& scorer = "levenshtein",
     const std::string& mode = "full",
+    bool process = true,
     double threshold = 0.0,
     int top_n = -1
 );

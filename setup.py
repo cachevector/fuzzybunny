@@ -12,12 +12,16 @@ class PybindBuildExt(build_ext):
             opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
             opts.append('-std=c++17')
             opts.append('-fvisibility=hidden')
+            opts.append('-fopenmp')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\"%s\"' % self.distribution.get_version())
             opts.append('/std:c++17')
+            opts.append('/openmp')
         
         for ext in self.extensions:
             ext.extra_compile_args = opts
+            if ct == 'unix':
+                ext.extra_link_args = ['-fopenmp']
         
         build_ext.build_extensions(self)
 
@@ -36,7 +40,7 @@ ext_modules = [
 setup(
     name="fuzzybunny",
     version="0.1.0",
-    description="A fuzzy search tool written in python (actually C++)",
+    description="A fuzzy search tool for python written in C++",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     ext_modules=ext_modules,
