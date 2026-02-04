@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <map>
 
 namespace fuzzybunny {
 
@@ -22,7 +23,8 @@ std::vector<MatchResult> rank(
     const std::string& mode = "full",
     bool process = true,
     double threshold = 0.0,
-    int top_n = -1
+    int top_n = -1,
+    const std::map<std::string, double>& weights = {}
 );
 
 std::vector<std::vector<MatchResult>> batch_match(
@@ -32,7 +34,8 @@ std::vector<std::vector<MatchResult>> batch_match(
     const std::string& mode = "full",
     bool process = true,
     double threshold = 0.0,
-    int top_n = -1
+    int top_n = -1,
+    const std::map<std::string, double>& weights = {}
 );
 
 // Helpers

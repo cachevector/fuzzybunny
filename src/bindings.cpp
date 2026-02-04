@@ -5,7 +5,7 @@
 namespace py = pybind11;
 using namespace fuzzybunny;
 
-PYBIND11_MODULE(fuzzybunny, m) {
+PYBIND11_MODULE(_fuzzybunny, m) {
     m.doc() = R"pbdoc(
         FuzzyBunny: A fast fuzzy string matching library
         ------------------------------------------------
@@ -42,6 +42,7 @@ PYBIND11_MODULE(fuzzybunny, m) {
           py::arg("process") = true,
           py::arg("threshold") = 0.0,
           py::arg("top_n") = -1,
+          py::arg("weights") = std::map<std::string, double>{},
           "Rank candidates against a query string. Returns list of (string, score) tuples.");
 
     m.def("batch_match", &batch_match,
@@ -52,6 +53,7 @@ PYBIND11_MODULE(fuzzybunny, m) {
           py::arg("process") = true,
           py::arg("threshold") = 0.0,
           py::arg("top_n") = -1,
+          py::arg("weights") = std::map<std::string, double>{},
           "Batch match multiple queries against candidates.");
 
 #ifdef VERSION_INFO
