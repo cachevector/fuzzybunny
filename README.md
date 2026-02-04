@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/fuzzybunny.png" alt="FuzzyBunny Logo" width="150" />
+  <img src="https://raw.githubusercontent.com/cachevector/fuzzybunny/master/docs/assets/fuzzybunny.png" alt="FuzzyBunny Logo" width="150" />
 </p>
 
 <h1 align="center">FuzzyBunny</h1>

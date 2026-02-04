@@ -40,10 +40,15 @@ ext_modules = [
 
 setup(
     name="fuzzybunny",
-    version="0.2.0",
+    version="0.2.1",
     description="A fuzzy search tool for python written in C++",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
+    url="https://github.com/cachevector/fuzzybunny",
+    project_urls={
+        "Bug Tracker": "https://github.com/cachevector/fuzzybunny/issues",
+        "Source Code": "https://github.com/cachevector/fuzzybunny",
+    },
     packages=["fuzzybunny"],
     package_dir={"": "src"},
     ext_modules=ext_modules,
