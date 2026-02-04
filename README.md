@@ -5,7 +5,7 @@
 <h1 align="center">FuzzyBunny</h1>
 
 <p align="center">
-  <b> A fuzzy search tool written in C++ with Python bindings </b>
+  <b> A high-performance, lightweight Python library for fuzzy string matching and ranking, implemented in C++ with Pybind11. </b>
 </p>
 
 <p align="center">
@@ -14,88 +14,70 @@
   <img src="https://img.shields.io/badge/Bindings-Pybind11-blue" />
 </p>
 
-## Overview
-
-FuzzyBunny is a lightweight, high-performance Python library for fuzzy string matching and ranking. It is implemented in C++ for speed and exposes a Pythonic API via Pybind11. It supports various scoring algorithms including Levenshtein, Jaccard, and Token Sort, along with partial matching capabilities.
-
 ## Features
 
-- **Fast C++ Core**: Optimized string matching algorithms.
-- **Multiple Scorers**:
-  - `levenshtein`: Standard edit distance ratio.
-  - `jaccard`: Set-based similarity.
-  - `token_sort`: Sorts tokens before comparing (good for "Apple Banana" vs "Banana Apple").
-- **Ranking**: Efficiently rank a list of candidates against a query.
-- **Partial Matching**: Support for substring matching via `mode='partial'`.
-- **Unicode Support**: Correctly handles UTF-8 input.
+- **Blazing Fast**: C++ core for 2-5x speed improvement over pure Python alternatives.
+- **Multiple Scorers**: Support for Levenshtein, Jaccard, and Token Sort ratios.
+- **Partial Matching**: Find the best substring matches.
+- **Hybrid Scoring**: Combine multiple scorers with custom weights.
+- **Pandas & NumPy Integration**: Native support for Series and Arrays.
+- **Batch Processing**: Parallelized matching for large datasets using OpenMP.
+- **Unicode Support**: Handles international characters and normalization.
+- **Benchmarking Tools**: Built-in utilities to measure performance.
 
 ## Installation
 
-### Prerequisites
-- Python 3.8+
-- C++17 compatible compiler (GCC, Clang, MSVC)
-
-### Using uv (Recommended)
-
 ```bash
-uv pip install .
+pip install fuzzybunny
 ```
 
-### Using pip
-
-```bash
-pip install .
-```
-
-## Usage
+## Quick Start
 
 ```python
 import fuzzybunny
 
-# Basic Levenshtein Ratio
+# Basic matching
 score = fuzzybunny.levenshtein("kitten", "sitting")
-print(f"Score: {score}")  # ~0.57
+print(f"Similarity: {score:.2f}")
 
-# Partial Matching
-# "apple" is a perfect substring of "apple pie"
-score = fuzzybunny.partial_ratio("apple", "apple pie")
-print(f"Partial Score: {score}")  # 1.0
-
-# Ranking Candidates
-candidates = ["apple pie", "banana bread", "cherry tart", "apple crisp"]
-results = fuzzybunny.rank(
-    query="apple", 
-    candidates=candidates, 
-    scorer="levenshtein", 
-    mode="partial", 
-    top_n=2
-)
-
-for candidate, score in results:
-    print(f"{candidate}: {score}")
-# Output:
-# apple pie: 1.0
-# apple crisp: 1.0
+# Ranking candidates
+candidates = ["apple", "apricot", "banana", "cherry"]
+results = fuzzybunny.rank("app", candidates, top_n=2)
+# [('apple', 0.6), ('apricot', 0.42)]
 ```
 
-## Development
+## Advanced Usage
 
-1. **Setup Environment**:
-   ```bash
-   uv venv
-   source .venv/bin/activate
-   ```
+### Hybrid Scorer
+Combine different algorithms to get better results:
 
-2. **Install in Editable Mode**:
-   ```bash
-   uv pip install -e .
-   ```
+```python
+results = fuzzybunny.rank(
+    "apple banana", 
+    ["banana apple"], 
+    scorer="hybrid", 
+    weights={"levenshtein": 0.3, "token_sort": 0.7}
+)
+```
 
-3. **Run Tests**:
-   ```bash
-   pytest
-   ```
+### Pandas Integration
+Use the specialized accessor for clean code:
+
+```python
+import pandas as pd
+import fuzzybunny
+
+df = pd.DataFrame({"names": ["apple pie", "banana bread", "cherry tart"]})
+results = df["names"].fuzzy.match("apple", mode="partial")
+```
+
+### Benchmarking
+Compare performance on your specific data:
+
+```python
+perf = fuzzybunny.benchmark("query", candidates)
+print(f"Levenshtein mean time: {perf['levenshtein']['mean']:.6f}s")
+```
 
 ## License
-
-This project is licensed under the [MIT License](LICENSE).
+MIT

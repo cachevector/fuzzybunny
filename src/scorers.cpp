@@ -17,13 +17,19 @@ std::u32string normalize(const std::u32string& s) {
     std::u32string result;
     result.reserve(s.size());
     for (char32_t c : s) {
-        // Lowercase and remove punctuation (basic ASCII range for now)
+        // Lowercase and remove punctuation
+        // Supporting basic Latin-1 range for better international support
         if (c < 128) {
             if (std::iswalnum(static_cast<wint_t>(c)) || std::iswspace(static_cast<wint_t>(c))) {
                 result.push_back(static_cast<char32_t>(std::towlower(static_cast<wint_t>(c))));
             }
+        } else if (c < 256) {
+            // Latin-1 Supplement
+            if (std::iswalpha(static_cast<wint_t>(c)) || std::iswspace(static_cast<wint_t>(c))) {
+                result.push_back(static_cast<char32_t>(std::towlower(static_cast<wint_t>(c))));
+            }
         } else {
-            // For non-ASCII, just pass through (proper unicode normalization is complex)
+            // For other non-ASCII, just pass through
             result.push_back(c);
         }
     }
@@ -205,7 +211,8 @@ std::vector<MatchResult> rank(
     const std::string& mode,
     bool process,
     double threshold,
-    int top_n
+    int top_n,
+    const std::map<std::string, double>& weights
 ) {
     if (query.empty() || candidates.empty()) return {};
 
@@ -233,8 +240,33 @@ std::vector<MatchResult> rank(
             score = jaccard_similarity(uQuery, uCand);
         } else if (scorer == "token_sort") {
             score = token_sort_ratio(uQuery, uCand);
+        } else if (scorer == "hybrid") {
+            double weighted_sum = 0.0;
+            double total_weight = 0.0;
+
+            for (const auto& [name, weight] : weights) {
+                double sub_score = 0.0;
+                if (name == "levenshtein") {
+                     if (mode == "partial") sub_score = partial_ratio(uQuery, uCand);
+                     else sub_score = levenshtein_ratio(uQuery, uCand);
+                } else if (name == "jaccard") {
+                    sub_score = jaccard_similarity(uQuery, uCand);
+                } else if (name == "token_sort") {
+                    sub_score = token_sort_ratio(uQuery, uCand);
+                }
+                // Ignore unknown scorers in weights for now, or could throw.
+                
+                weighted_sum += sub_score * weight;
+                total_weight += weight;
+            }
+
+            if (total_weight > 0.0) {
+                score = weighted_sum / total_weight;
+            } else {
+                score = 0.0;
+            }
         } else {
-             score = 0.0;
+             throw std::invalid_argument("Unknown scorer: " + scorer);
         }
 
         if (score >= threshold) {
@@ -260,13 +292,14 @@ std::vector<std::vector<MatchResult>> batch_match(
     const std::string& mode,
     bool process,
     double threshold,
-    int top_n
+    int top_n,
+    const std::map<std::string, double>& weights
 ) {
     std::vector<std::vector<MatchResult>> batch_results(queries.size());
 
     #pragma omp parallel for if(queries.size() > 10)
     for (int i = 0; i < static_cast<int>(queries.size()); ++i) {
-        batch_results[i] = rank(queries[i], candidates, scorer, mode, process, threshold, top_n);
+        batch_results[i] = rank(queries[i], candidates, scorer, mode, process, threshold, top_n, weights);
     }
     return batch_results;
 }

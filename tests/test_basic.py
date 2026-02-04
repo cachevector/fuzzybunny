@@ -41,6 +41,10 @@ def test_unicode():
     assert fuzzybunny.levenshtein(s1, s2) < 1.0
     assert fuzzybunny.levenshtein(s1, s1) == 1.0
     assert fuzzybunny.levenshtein("😊", "😊") == 1.0
+    
+    # Test normalization of international characters
+    res = fuzzybunny.rank("CAFÉ", ["café"], process=True)
+    assert res[0][1] == 1.0
 
 def test_rank():
     candidates = ["apple", "apricot", "banana", "cherry"]
@@ -61,5 +65,5 @@ def test_batch_match():
     assert results[1][0][0] == "banana bread"
 
 def test_invalid_scorer_rank():
-    results = fuzzybunny.rank("a", ["a"], scorer="unknown")
-    assert results[0][1] == 0.0
+    with pytest.raises(ValueError, match="Unknown scorer"):
+        fuzzybunny.rank("a", ["a"], scorer="unknown")
