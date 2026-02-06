@@ -24,6 +24,8 @@
 - **Batch Processing**: Parallelized matching for large datasets using OpenMP.
 - **Unicode Support**: Handles international characters and normalization.
 - **Benchmarking Tools**: Built-in utilities to measure performance.
+- **Thread Safe**: Releases the GIL in C++ for better multi-threading performance.
+- **Type Safe**: Includes PEP 561 type stubs for full IDE and MyPy support.
 
 ## Installation
 
