@@ -40,7 +40,7 @@ ext_modules = [
 
 setup(
     name="fuzzybunny",
-    version="0.2.1",
+    version="0.2.2",
     description="A fuzzy search tool for python written in C++",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -51,6 +51,7 @@ setup(
     },
     packages=["fuzzybunny"],
     package_dir={"": "src"},
+    package_data={"fuzzybunny": ["py.typed", "*.pyi"]},
     ext_modules=ext_modules,
     cmdclass={"build_ext": PybindBuildExt},
     zip_safe=False,
