@@ -62,7 +62,7 @@ ext_modules = [
 
 setup(
     name="fuzzybunny",
-    version="0.2.2",
+    version="0.3.0",
     description="A fuzzy search tool for python written in C++",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
