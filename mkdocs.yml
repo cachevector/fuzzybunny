@@ -1,0 +1,20 @@
+site_name: FuzzyBunny
+site_url: https://cachevector.github.io/fuzzybunny/
+repo_url: https://github.com/cachevector/fuzzybunny
+theme:
+  name: material
+  palette:
+    primary: deep purple
+    accent: pink
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+
+nav:
+  - Home: index.md
+  - API Reference: api.md
+  - Performance: performance.md
