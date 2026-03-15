@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <cwctype>
 
+#include <clocale>
+
 namespace fuzzybunny {
 
 // --- Unicode Helper ---
@@ -18,19 +20,14 @@ std::u32string normalize(const std::u32string& s) {
     std::u32string result;
     result.reserve(s.size());
     for (char32_t c : s) {
-        // Lowercase and remove punctuation
-        // Supporting basic Latin-1 range for better international support
         if (c < 128) {
-            if (std::iswalnum(static_cast<wint_t>(c)) || std::iswspace(static_cast<wint_t>(c))) {
-                result.push_back(static_cast<char32_t>(std::towlower(static_cast<wint_t>(c))));
-            }
-        } else if (c < 256) {
-            // Latin-1 Supplement
-            if (std::iswalpha(static_cast<wint_t>(c)) || std::iswspace(static_cast<wint_t>(c))) {
-                result.push_back(static_cast<char32_t>(std::towlower(static_cast<wint_t>(c))));
+            if (std::isalnum(static_cast<int>(c)) || std::isspace(static_cast<int>(c))) {
+                result.push_back(static_cast<char32_t>(std::tolower(static_cast<int>(c))));
             }
         } else {
-            // For other non-ASCII, just pass through
+            // For non-ASCII, we pass through to avoid locale dependencies.
+            // If they are identical (like uppercase Greek), they will still match.
+            // Real Unicode normalization/case-folding is complex and out of scope for a lightweight lib.
             result.push_back(c);
         }
     }

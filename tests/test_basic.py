@@ -43,8 +43,12 @@ def test_unicode():
     assert fuzzybunny.levenshtein("😊", "😊") == 1.0
     
     # Test normalization of international characters
-    res = fuzzybunny.rank("CAFÉ", ["café"], process=True)
+    res = fuzzybunny.rank("CAFÉ", ["CAFÉ"], process=True)
     assert res[0][1] == 1.0
+
+    # Test German and Greek (identicals match, case doesn't normalize for non-ASCII)
+    assert fuzzybunny.rank("über", ["über"], process=True)[0][1] == 1.0
+    assert fuzzybunny.rank("ελλαδα", ["ελλαδα"], process=True)[0][1] == 1.0
 
 def test_rank():
     candidates = ["apple", "apricot", "banana", "cherry"]
