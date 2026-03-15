@@ -5,6 +5,7 @@
 #include <sstream>
 #include <cmath>
 #include <map>
+#include <unordered_map>
 #include <iostream>
 #include <cstdint>
 #include <cwctype>
@@ -108,6 +109,48 @@ std::vector<std::u32string> tokenize(const std::u32string& s) {
 
 // --- Scorers ---
 
+/**
+ * Myers' Bit-Parallel Levenshtein algorithm.
+ * Optimized for strings where shorter.size() <= 64.
+ * Complexity: O(N * (M/W)) where W=64.
+ */
+size_t myers_levenshtein(const std::u32string& shorter, const std::u32string& longer) {
+    size_t m = shorter.size();
+    size_t n = longer.size();
+
+    uint64_t pv = -1;
+    uint64_t mv = 0;
+    size_t dist = m;
+
+    // Precompute character masks
+    std::unordered_map<char32_t, uint64_t> peq;
+    for (size_t i = 0; i < m; ++i) {
+        peq[shorter[i]] |= (1ULL << i);
+    }
+
+    uint64_t last_bit = 1ULL << (m - 1);
+
+    for (size_t j = 0; j < n; ++j) {
+        uint64_t eq = peq[longer[j]];
+        uint64_t xv = eq | mv;
+        uint64_t xh = (((eq & pv) + pv) ^ pv) | eq | mv;
+
+        uint64_t ph = mv | ~(xh | pv);
+        uint64_t mh = pv & xh;
+
+        if (ph & last_bit) dist++;
+        if (mh & last_bit) dist--;
+
+        ph = (ph << 1) | 1;
+        mh = (mh << 1);
+
+        pv = mh | ~(ph | xv);
+        mv = ph & xv;
+    }
+
+    return dist;
+}
+
 double levenshtein_ratio(const std::u32string& s1, const std::u32string& s2) {
     size_t len1 = s1.size();
     size_t len2 = s2.size();
@@ -115,27 +158,39 @@ double levenshtein_ratio(const std::u32string& s1, const std::u32string& s2) {
     if (len1 == 0 && len2 == 0) return 1.0;
     if (len1 == 0 || len2 == 0) return 0.0;
 
-    std::vector<size_t> prev(len2 + 1);
-    std::vector<size_t> curr(len2 + 1);
+    const auto& shorter = (len1 <= len2) ? s1 : s2;
+    const auto& longer = (len1 > len2) ? s1 : s2;
+    
+    size_t m = shorter.size();
+    size_t n = longer.size();
+    size_t dist;
 
-    for (size_t j = 0; j <= len2; ++j) prev[j] = j;
+    // Use Myers' bit-parallel algorithm if the shorter string fits in 64 bits
+    if (m <= 64) {
+        dist = myers_levenshtein(shorter, longer);
+    } else {
+        // Fallback to standard DP for very long strings
+        std::vector<size_t> prev(m + 1);
+        std::vector<size_t> curr(m + 1);
 
-    for (size_t i = 1; i <= len1; ++i) {
-        curr[0] = i;
-        for (size_t j = 1; j <= len2; ++j) {
-            size_t cost = (s1[i - 1] == s2[j - 1]) ? 0 : 1;
-            curr[j] = std::min({
-                prev[j] + 1,       
-                curr[j - 1] + 1,   
-                prev[j - 1] + cost 
-            });
+        for (size_t i = 0; i <= m; ++i) prev[i] = i;
+
+        for (size_t j = 1; j <= n; ++j) {
+            curr[0] = j;
+            for (size_t i = 1; i <= m; ++i) {
+                size_t cost = (shorter[i - 1] == longer[j - 1]) ? 0 : 1;
+                curr[i] = std::min({
+                    prev[i] + 1,       
+                    curr[i - 1] + 1,   
+                    prev[i - 1] + cost 
+                });
+            }
+            prev = curr;
         }
-        prev = curr;
+        dist = prev[m];
     }
 
-    size_t dist = prev[len2];
     size_t max_len = std::max(len1, len2);
-    
     return 1.0 - (static_cast<double>(dist) / static_cast<double>(max_len));
 }
 
