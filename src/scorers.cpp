@@ -257,7 +257,75 @@ double token_sort_ratio(const std::u32string& s1, const std::u32string& s2) {
     return levenshtein_ratio(joined1, joined2);
 }
 
-// --- Ranking ---
+// Internal helper for ranking using pre-normalized strings
+std::vector<MatchResult> rank_normalized(
+    const std::u32string& uQuery,
+    const std::vector<std::string>& candidates,
+    const std::vector<std::u32string>& uCandidates,
+    const std::string& scorer,
+    const std::string& mode,
+    double threshold,
+    int top_n,
+    const std::map<std::string, double>& weights
+) {
+    std::vector<MatchResult> results;
+    results.reserve(candidates.size());
+
+    for (size_t i = 0; i < candidates.size(); ++i) {
+        const auto& uCand = uCandidates[i];
+        double score = 0.0;
+
+        if (scorer == "levenshtein") {
+            if (mode == "partial") {
+                score = partial_ratio(uQuery, uCand);
+            } else {
+                score = levenshtein_ratio(uQuery, uCand);
+            }
+        } else if (scorer == "jaccard") {
+            score = jaccard_similarity(uQuery, uCand);
+        } else if (scorer == "token_sort") {
+            score = token_sort_ratio(uQuery, uCand);
+        } else if (scorer == "hybrid") {
+            double weighted_sum = 0.0;
+            double total_weight = 0.0;
+
+            for (const auto& [name, weight] : weights) {
+                double sub_score = 0.0;
+                if (name == "levenshtein") {
+                    if (mode == "partial") sub_score = partial_ratio(uQuery, uCand);
+                    else sub_score = levenshtein_ratio(uQuery, uCand);
+                } else if (name == "jaccard") {
+                    sub_score = jaccard_similarity(uQuery, uCand);
+                } else if (name == "token_sort") {
+                    sub_score = token_sort_ratio(uQuery, uCand);
+                }
+                weighted_sum += sub_score * weight;
+                total_weight += weight;
+            }
+
+            if (total_weight > 0.0) {
+                score = weighted_sum / total_weight;
+            }
+        } else {
+            throw std::invalid_argument("Unknown scorer: " + scorer);
+        }
+
+        if (score >= threshold) {
+            results.push_back({candidates[i], score});
+        }
+    }
+
+    std::sort(results.begin(), results.end(), [](const MatchResult& a, const MatchResult& b) {
+        if (a.second != b.second) return a.second > b.second;
+        return a.first < b.first; // Deterministic tie-breaking
+    });
+
+    if (top_n > 0 && static_cast<size_t>(top_n) < results.size()) {
+        results.resize(top_n);
+    }
+
+    return results;
+}
 
 std::vector<MatchResult> rank(
     const std::string& query,
@@ -274,70 +342,15 @@ std::vector<MatchResult> rank(
     std::u32string uQuery = utf8_to_u32(query);
     if (process) uQuery = normalize(uQuery);
 
-    std::vector<MatchResult> results;
-    results.reserve(candidates.size());
-
+    std::vector<std::u32string> uCandidates;
+    uCandidates.reserve(candidates.size());
     for (const auto& cand : candidates) {
         std::u32string uCand = utf8_to_u32(cand);
         if (process) uCand = normalize(uCand);
-
-        double score = 0.0;
-
-        if (scorer == "levenshtein") {
-            if (mode == "partial") {
-                score = partial_ratio(uQuery, uCand);
-            } else {
-                score = levenshtein_ratio(uQuery, uCand);
-            }
-        } else if (scorer == "jaccard") {
-             // Jaccard is inherently set-based, so partial matching on substrings
-             // doesn't align with the standard definition. 
-            score = jaccard_similarity(uQuery, uCand);
-        } else if (scorer == "token_sort") {
-            score = token_sort_ratio(uQuery, uCand);
-        } else if (scorer == "hybrid") {
-            double weighted_sum = 0.0;
-            double total_weight = 0.0;
-
-            for (const auto& [name, weight] : weights) {
-                double sub_score = 0.0;
-                if (name == "levenshtein") {
-                     if (mode == "partial") sub_score = partial_ratio(uQuery, uCand);
-                     else sub_score = levenshtein_ratio(uQuery, uCand);
-                } else if (name == "jaccard") {
-                    sub_score = jaccard_similarity(uQuery, uCand);
-                } else if (name == "token_sort") {
-                    sub_score = token_sort_ratio(uQuery, uCand);
-                }
-                // Ignore unknown scorers in weights for now, or could throw.
-                
-                weighted_sum += sub_score * weight;
-                total_weight += weight;
-            }
-
-            if (total_weight > 0.0) {
-                score = weighted_sum / total_weight;
-            } else {
-                score = 0.0;
-            }
-        } else {
-             throw std::invalid_argument("Unknown scorer: " + scorer);
-        }
-
-        if (score >= threshold) {
-            results.push_back({cand, score});
-        }
+        uCandidates.push_back(uCand);
     }
 
-    std::sort(results.begin(), results.end(), [](const MatchResult& a, const MatchResult& b) {
-        return a.second > b.second;
-    });
-
-    if (top_n > 0 && static_cast<size_t>(top_n) < results.size()) {
-        results.resize(top_n);
-    }
-
-    return results;
+    return rank_normalized(uQuery, candidates, uCandidates, scorer, mode, threshold, top_n, weights);
 }
 
 std::vector<std::vector<MatchResult>> batch_match(
@@ -350,11 +363,31 @@ std::vector<std::vector<MatchResult>> batch_match(
     int top_n,
     const std::map<std::string, double>& weights
 ) {
+    if (queries.empty() || candidates.empty()) return std::vector<std::vector<MatchResult>>(queries.size());
+
+    // Pre-normalize all candidates
+    std::vector<std::u32string> uCandidates;
+    uCandidates.reserve(candidates.size());
+    for (const auto& cand : candidates) {
+        std::u32string uCand = utf8_to_u32(cand);
+        if (process) uCand = normalize(uCand);
+        uCandidates.push_back(uCand);
+    }
+
+    // Pre-normalize all queries
+    std::vector<std::u32string> uQueries;
+    uQueries.reserve(queries.size());
+    for (const auto& q : queries) {
+        std::u32string uQ = utf8_to_u32(q);
+        if (process) uQ = normalize(uQ);
+        uQueries.push_back(uQ);
+    }
+
     std::vector<std::vector<MatchResult>> batch_results(queries.size());
 
-    #pragma omp parallel for if(queries.size() > 10)
+    #pragma omp parallel for if(queries.size() > 5)
     for (int i = 0; i < static_cast<int>(queries.size()); ++i) {
-        batch_results[i] = rank(queries[i], candidates, scorer, mode, process, threshold, top_n, weights);
+        batch_results[i] = rank_normalized(uQueries[i], candidates, uCandidates, scorer, mode, threshold, top_n, weights);
     }
     return batch_results;
 }
