@@ -23,6 +23,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.3
         env:
+          CIBW_VENV_TOOL: venv
           # Configure cibuildwheel
           CIBW_SKIP: "pp* *-musllinux*" # Skip PyPy and Musl Linux
           CIBW_ARCHS_MACOS: "x86_64 arm64" # Universal Mac support
