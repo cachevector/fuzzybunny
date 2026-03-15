@@ -22,16 +22,14 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
       - name: Install cibuildwheel
-        run: uv pip install --system cibuildwheel==2.21.3
+        run: pip install cibuildwheel==2.21.3
 
       - name: Build wheels
         run: cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_VENV_TOOL: uv
+          CIBW_VENV_TOOL: venv
+          CIBW_VIRTUALENV_VERSION: ""
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_BEFORE_BUILD: "pip install pybind11"
@@ -46,10 +44,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
       - name: Build sdist
-        run: uvx --from build pyproject-build --sdist
+        run: |
+          pip install build
+          python -m build --sdist
       - uses: actions/upload-artifact@v4
         with:
           name: pip-sdist
