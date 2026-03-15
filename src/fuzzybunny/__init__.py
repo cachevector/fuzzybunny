@@ -34,7 +34,45 @@ def rank(
     weights: Dict[str, float] = None
 ) -> List[Tuple[str, float]]:
     """
-    Rank candidates against a query string. Supports List, NumPy arrays, and Pandas Series.
+    Ranks a list of candidates based on their similarity to a query string.
+
+    This is the primary function for finding the best matches in a collection. It supports
+    multiple scoring algorithms, threshold filtering, and integrated string normalization.
+
+    Args:
+        query: The string to search for.
+        candidates: A collection of strings to search through. Can be a list, 
+            pandas.Series, or numpy.ndarray.
+        scorer: The similarity algorithm to use. Options include:
+            - `"levenshtein"`: Standard edit distance ratio.
+            - `"wratio"`: Weighted combination of multiple algorithms (recommended).
+            - `"qratio"`: Simplified Levenshtein ratio.
+            - `"token_sort"`: Sorts tokens before comparison.
+            - `"token_set"`: Set-based comparison (handles duplicates and order).
+            - `"jaccard"`: Jaccard similarity between token sets.
+            - Or a custom `Callable[[str, str], float]`.
+        mode: Matching mode. 
+            - `"full"`: Matches the entire candidate string.
+            - `"partial"`: Finds the best substring match.
+        process: If True, applies normalization (lowercasing, punctuation removal) 
+            before matching.
+        threshold: Minimum score (0.0 to 1.0) for a candidate to be included in 
+            the results.
+        top_n: Maximum number of results to return. Use -1 for all matches.
+        weights: Dictionary of weights for the `"hybrid"` scorer.
+
+    Returns:
+        A list of tuples containing (matched_string, similarity_score), 
+        sorted by score in descending order.
+
+    Examples:
+        >>> import fuzzybunny
+        >>> fuzzybunny.rank("apple", ["apple pie", "banana", "apricot"])
+        [('apple pie', 0.5555555555555556), ('apricot', 0.42857142857142855)]
+
+        >>> # Partial matching
+        >>> fuzzybunny.rank("apple", ["apple pie"], mode="partial")
+        [('apple pie', 1.0)]
     """
     if weights is None:
         weights = {}
@@ -45,7 +83,7 @@ def rank(
     elif _is_numpy_array(candidates):
         import numpy as np
         candidates = np.array(candidates).astype(str).tolist()
-    elif not isinstance(candidates, list):
+    elif not isinstance(candidates, (list, tuple)):
         candidates = list(candidates)
 
     return _fuzzybunny.rank(query, candidates, scorer, mode, process, threshold, top_n, weights)
@@ -61,7 +99,27 @@ def batch_match(
     weights: Dict[str, float] = None
 ) -> List[List[Tuple[str, float]]]:
     """
-    Batch match multiple queries against candidates. Supports List, NumPy arrays, and Pandas Series.
+    Efficiently matches multiple queries against a collection of candidates.
+
+    Utilizes multi-threading (OpenMP) and internal string normalization caching
+    to provide high-performance batch processing.
+
+    Args:
+        queries: A collection of strings to match.
+        candidates: A collection of target strings to search through.
+        scorer: See `rank` for available options.
+        mode: See `rank`.
+        process: See `rank`.
+        threshold: See `rank`.
+        top_n: Maximum number of results per query.
+        weights: See `rank`.
+
+    Returns:
+        A list of result lists, where each inner list corresponds to a query.
+
+    Note:
+        This function is significantly faster than calling `rank` in a loop
+        for large datasets due to parallelization and reduced overhead.
     """
     if weights is None:
         weights = {}
@@ -71,14 +129,14 @@ def batch_match(
     elif _is_numpy_array(candidates):
         import numpy as np
         candidates = np.array(candidates).astype(str).tolist()
-    elif not isinstance(candidates, list):
+    elif not isinstance(candidates, (list, tuple)):
         candidates = list(candidates)
 
     # queries can also be pandas/numpy
     if _is_pandas_series(queries) or _is_numpy_array(queries):
         import numpy as np
         queries = np.array(queries).astype(str).tolist()
-    elif not isinstance(queries, list):
+    elif not isinstance(queries, (list, tuple)):
         queries = list(queries)
 
     return _fuzzybunny.batch_match(queries, candidates, scorer, mode, process, threshold, top_n, weights)

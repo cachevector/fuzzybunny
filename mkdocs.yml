@@ -4,8 +4,26 @@ repo_url: https://github.com/cachevector/fuzzybunny
 theme:
   name: material
   palette:
-    primary: deep purple
-    accent: pink
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: pink
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.follow
+    - content.code.annotate
+    - content.code.copy
 
 plugins:
   - search
@@ -13,8 +31,33 @@ plugins:
       handlers:
         python:
           paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
 
 nav:
   - Home: index.md
+  - User Guide:
+    - Installation: guide/installation.md
+    - Basic Usage: guide/basic_usage.md
+    - Advanced Scoring: guide/advanced.md
   - API Reference: api.md
   - Performance: performance.md
