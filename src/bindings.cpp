@@ -49,25 +49,23 @@ PYBIND11_MODULE(_fuzzybunny, m) {
     m.def("rank", &rank,
           py::arg("query"),
           py::arg("candidates"),
-          py::arg("scorer") = "levenshtein",
+          py::arg("scorer") = py::str("levenshtein"),
           py::arg("mode") = "full",
           py::arg("process") = true,
           py::arg("threshold") = 0.0,
           py::arg("top_n") = -1,
           py::arg("weights") = std::map<std::string, double>{},
-          py::call_guard<py::gil_scoped_release>(),
           "Rank candidates against a query string. Returns list of (string, score) tuples.");
 
     m.def("batch_match", &batch_match,
           py::arg("queries"),
           py::arg("candidates"),
-          py::arg("scorer") = "levenshtein",
+          py::arg("scorer") = py::str("levenshtein"),
           py::arg("mode") = "full",
           py::arg("process") = true,
           py::arg("threshold") = 0.0,
           py::arg("top_n") = -1,
           py::arg("weights") = std::map<std::string, double>{},
-          py::call_guard<py::gil_scoped_release>(),
           "Batch match multiple queries against candidates.");
 
 #ifdef VERSION_INFO

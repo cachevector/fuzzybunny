@@ -341,12 +341,37 @@ double wratio(const std::u32string& s1, const std::u32string& s2) {
     return std::max({end_ratio, token_sort, token_set});
 }
 
+// Helpers
+std::string u32_to_utf8(const std::u32string& s) {
+    std::string result;
+    result.reserve(s.size());
+    for (char32_t cp : s) {
+        if (cp < 0x80) {
+            result.push_back(static_cast<char>(cp));
+        } else if (cp < 0x800) {
+            result.push_back(static_cast<char>((cp >> 6) | 0xc0));
+            result.push_back(static_cast<char>((cp & 0x3f) | 0x80));
+        } else if (cp < 0x10000) {
+            result.push_back(static_cast<char>((cp >> 12) | 0xe0));
+            result.push_back(static_cast<char>(((cp >> 6) & 0x3f) | 0x80));
+            result.push_back(static_cast<char>((cp & 0x3f) | 0x80));
+        } else {
+            result.push_back(static_cast<char>((cp >> 18) | 0xf0));
+            result.push_back(static_cast<char>(((cp >> 12) & 0x3f) | 0x80));
+            result.push_back(static_cast<char>(((cp >> 6) & 0x3f) | 0x80));
+            result.push_back(static_cast<char>((cp & 0x3f) | 0x80));
+        }
+    }
+    return result;
+}
+
 // Internal helper for ranking using pre-normalized strings
 std::vector<MatchResult> rank_normalized(
     const std::u32string& uQuery,
     const std::vector<std::string>& candidates,
     const std::vector<std::u32string>& uCandidates,
-    const std::string& scorer,
+    const std::string& scorer_name,
+    const py::function& scorer_func,
     const std::string& mode,
     double threshold,
     int top_n,
@@ -355,55 +380,48 @@ std::vector<MatchResult> rank_normalized(
     std::vector<MatchResult> results;
     results.reserve(candidates.size());
 
+    bool is_custom = scorer_func && !scorer_func.is_none();
+
     for (size_t i = 0; i < candidates.size(); ++i) {
         const auto& uCand = uCandidates[i];
         double score = 0.0;
 
-        if (scorer == "levenshtein") {
-            if (mode == "partial") {
-                score = partial_ratio(uQuery, uCand);
-            } else {
-                score = levenshtein_ratio(uQuery, uCand);
-            }
-        } else if (scorer == "jaccard") {
-            score = jaccard_similarity(uQuery, uCand);
-        } else if (scorer == "token_sort") {
-            score = token_sort_ratio(uQuery, uCand);
-        } else if (scorer == "token_set") {
-            score = token_set_ratio(uQuery, uCand);
-        } else if (scorer == "qratio") {
-            score = qratio(uQuery, uCand);
-        } else if (scorer == "wratio") {
-            score = wratio(uQuery, uCand);
-        } else if (scorer == "hybrid") {
-            double weighted_sum = 0.0;
-            double total_weight = 0.0;
-
-            for (const auto& [name, weight] : weights) {
-                double sub_score = 0.0;
-                if (name == "levenshtein") {
-                    if (mode == "partial") sub_score = partial_ratio(uQuery, uCand);
-                    else sub_score = levenshtein_ratio(uQuery, uCand);
-                } else if (name == "jaccard") {
-                    sub_score = jaccard_similarity(uQuery, uCand);
-                } else if (name == "token_sort") {
-                    sub_score = token_sort_ratio(uQuery, uCand);
-                } else if (name == "token_set") {
-                    sub_score = token_set_ratio(uQuery, uCand);
-                } else if (name == "qratio") {
-                    sub_score = qratio(uQuery, uCand);
-                } else if (name == "wratio") {
-                    sub_score = wratio(uQuery, uCand);
-                }
-                weighted_sum += sub_score * weight;
-                total_weight += weight;
-            }
-
-            if (total_weight > 0.0) {
-                score = weighted_sum / total_weight;
-            }
+        if (is_custom) {
+            score = scorer_func(u32_to_utf8(uQuery), u32_to_utf8(uCand)).cast<double>();
         } else {
-            throw std::invalid_argument("Unknown scorer: " + scorer);
+            if (scorer_name == "levenshtein") {
+                if (mode == "partial") score = partial_ratio(uQuery, uCand);
+                else score = levenshtein_ratio(uQuery, uCand);
+            } else if (scorer_name == "jaccard") {
+                score = jaccard_similarity(uQuery, uCand);
+            } else if (scorer_name == "token_sort") {
+                score = token_sort_ratio(uQuery, uCand);
+            } else if (scorer_name == "token_set") {
+                score = token_set_ratio(uQuery, uCand);
+            } else if (scorer_name == "qratio") {
+                score = qratio(uQuery, uCand);
+            } else if (scorer_name == "wratio") {
+                score = wratio(uQuery, uCand);
+            } else if (scorer_name == "hybrid") {
+                double weighted_sum = 0.0;
+                double total_weight = 0.0;
+                for (const auto& [name, weight] : weights) {
+                    double sub_score = 0.0;
+                    if (name == "levenshtein") {
+                        if (mode == "partial") sub_score = partial_ratio(uQuery, uCand);
+                        else sub_score = levenshtein_ratio(uQuery, uCand);
+                    } else if (name == "jaccard") sub_score = jaccard_similarity(uQuery, uCand);
+                    else if (name == "token_sort") sub_score = token_sort_ratio(uQuery, uCand);
+                    else if (name == "token_set") sub_score = token_set_ratio(uQuery, uCand);
+                    else if (name == "qratio") sub_score = qratio(uQuery, uCand);
+                    else if (name == "wratio") sub_score = wratio(uQuery, uCand);
+                    weighted_sum += sub_score * weight;
+                    total_weight += weight;
+                }
+                if (total_weight > 0.0) score = weighted_sum / total_weight;
+            } else {
+                throw std::invalid_argument("Unknown scorer: " + scorer_name);
+            }
         }
 
         if (score >= threshold) {
@@ -413,7 +431,7 @@ std::vector<MatchResult> rank_normalized(
 
     std::sort(results.begin(), results.end(), [](const MatchResult& a, const MatchResult& b) {
         if (a.second != b.second) return a.second > b.second;
-        return a.first < b.first; // Deterministic tie-breaking
+        return a.first < b.first; 
     });
 
     if (top_n > 0 && static_cast<size_t>(top_n) < results.size()) {
@@ -426,7 +444,7 @@ std::vector<MatchResult> rank_normalized(
 std::vector<MatchResult> rank(
     const std::string& query,
     const std::vector<std::string>& candidates,
-    const std::string& scorer,
+    const py::object& scorer,
     const std::string& mode,
     bool process,
     double threshold,
@@ -434,6 +452,17 @@ std::vector<MatchResult> rank(
     const std::map<std::string, double>& weights
 ) {
     if (query.empty() || candidates.empty()) return {};
+
+    std::string scorer_name;
+    py::function scorer_func;
+
+    if (py::isinstance<py::str>(scorer)) {
+        scorer_name = scorer.cast<std::string>();
+    } else if (py::isinstance<py::function>(scorer)) {
+        scorer_func = scorer.cast<py::function>();
+    } else {
+        throw std::invalid_argument("Scorer must be a string or a callable");
+    }
 
     std::u32string uQuery = utf8_to_u32(query);
     if (process) uQuery = normalize(uQuery);
@@ -446,13 +475,18 @@ std::vector<MatchResult> rank(
         uCandidates.push_back(uCand);
     }
 
-    return rank_normalized(uQuery, candidates, uCandidates, scorer, mode, threshold, top_n, weights);
+    if (!scorer_func) {
+        py::gil_scoped_release release;
+        return rank_normalized(uQuery, candidates, uCandidates, scorer_name, scorer_func, mode, threshold, top_n, weights);
+    }
+    
+    return rank_normalized(uQuery, candidates, uCandidates, scorer_name, scorer_func, mode, threshold, top_n, weights);
 }
 
 std::vector<std::vector<MatchResult>> batch_match(
     const std::vector<std::string>& queries,
     const std::vector<std::string>& candidates,
-    const std::string& scorer,
+    const py::object& scorer,
     const std::string& mode,
     bool process,
     double threshold,
@@ -461,7 +495,18 @@ std::vector<std::vector<MatchResult>> batch_match(
 ) {
     if (queries.empty() || candidates.empty()) return std::vector<std::vector<MatchResult>>(queries.size());
 
-    // Pre-normalize all candidates
+    std::string scorer_name;
+    py::function scorer_func;
+
+    if (py::isinstance<py::str>(scorer)) {
+        scorer_name = scorer.cast<std::string>();
+    } else if (py::isinstance<py::function>(scorer)) {
+        scorer_func = scorer.cast<py::function>();
+    } else {
+        throw std::invalid_argument("Scorer must be a string or a callable");
+    }
+
+    // Pre-normalize
     std::vector<std::u32string> uCandidates;
     uCandidates.reserve(candidates.size());
     for (const auto& cand : candidates) {
@@ -470,7 +515,6 @@ std::vector<std::vector<MatchResult>> batch_match(
         uCandidates.push_back(uCand);
     }
 
-    // Pre-normalize all queries
     std::vector<std::u32string> uQueries;
     uQueries.reserve(queries.size());
     for (const auto& q : queries) {
@@ -481,10 +525,25 @@ std::vector<std::vector<MatchResult>> batch_match(
 
     std::vector<std::vector<MatchResult>> batch_results(queries.size());
 
-    #pragma omp parallel for if(queries.size() > 5)
-    for (int i = 0; i < static_cast<int>(queries.size()); ++i) {
-        batch_results[i] = rank_normalized(uQueries[i], candidates, uCandidates, scorer, mode, threshold, top_n, weights);
+    if (!scorer_func) {
+        py::gil_scoped_release release;
+        #pragma omp parallel for if(queries.size() > 5)
+        for (int i = 0; i < static_cast<int>(queries.size()); ++i) {
+            batch_results[i] = rank_normalized(uQueries[i], candidates, uCandidates, scorer_name, scorer_func, mode, threshold, top_n, weights);
+        }
+    } else {
+        // For custom scorers, we can't release the GIL easily for the whole parallel block
+        // because each call needs the GIL. 
+        // For simplicity and safety, if it's a custom scorer, we don't parallelize here
+        // or we have to acquire/release GIL inside the loop.
+        // Let's parallelize with GIL acquisition inside the loop.
+        #pragma omp parallel for if(queries.size() > 5)
+        for (int i = 0; i < static_cast<int>(queries.size()); ++i) {
+            py::gil_scoped_acquire acquire;
+            batch_results[i] = rank_normalized(uQueries[i], candidates, uCandidates, scorer_name, scorer_func, mode, threshold, top_n, weights);
+        }
     }
+
     return batch_results;
 }
 

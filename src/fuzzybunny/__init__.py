@@ -1,3 +1,5 @@
+from typing import Union, Callable, List, Tuple, Dict, Any
+
 from . import _fuzzybunny
 from ._fuzzybunny import (
     levenshtein,
@@ -11,7 +13,16 @@ from ._fuzzybunny import (
 
 from .benchmark import benchmark, benchmark_batch
 
-def rank(query, candidates, scorer="levenshtein", mode="full", process=True, threshold=0.0, top_n=-1, weights=None):
+def rank(
+    query: str, 
+    candidates: List[str], 
+    scorer: Union[str, Callable[[str, str], float]] = "levenshtein", 
+    mode: str = "full", 
+    process: bool = True, 
+    threshold: float = 0.0, 
+    top_n: int = -1, 
+    weights: Dict[str, float] = None
+) -> List[Tuple[str, float]]:
     """
     Enhanced rank function with support for Pandas Series and NumPy arrays.
     """
@@ -26,7 +37,16 @@ def rank(query, candidates, scorer="levenshtein", mode="full", process=True, thr
 
     return _fuzzybunny.rank(query, candidates, scorer, mode, process, threshold, top_n, weights)
 
-def batch_match(queries, candidates, scorer="levenshtein", mode="full", process=True, threshold=0.0, top_n=-1, weights=None):
+def batch_match(
+    queries: Union[List[str], Any], 
+    candidates: Union[List[str], Any], 
+    scorer: Union[str, Callable[[str, str], float]] = "levenshtein", 
+    mode: str = "full", 
+    process: bool = True, 
+    threshold: float = 0.0, 
+    top_n: int = -1, 
+    weights: Dict[str, float] = None
+) -> List[List[Tuple[str, float]]]:
     """
     Enhanced batch_match function with support for Pandas/NumPy candidates.
     """

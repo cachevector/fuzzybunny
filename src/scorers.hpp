@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <tuple>
-#include <map>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+namespace py = pybind11;
 
 namespace fuzzybunny {
 
@@ -22,7 +22,7 @@ using MatchResult = std::pair<std::string, double>;
 std::vector<MatchResult> rank(
     const std::string& query,
     const std::vector<std::string>& candidates,
-    const std::string& scorer = "levenshtein",
+    const py::object& scorer,
     const std::string& mode = "full",
     bool process = true,
     double threshold = 0.0,
@@ -33,7 +33,7 @@ std::vector<MatchResult> rank(
 std::vector<std::vector<MatchResult>> batch_match(
     const std::vector<std::string>& queries,
     const std::vector<std::string>& candidates,
-    const std::string& scorer = "levenshtein",
+    const py::object& scorer,
     const std::string& mode = "full",
     bool process = true,
     double threshold = 0.0,
