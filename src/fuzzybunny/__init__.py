@@ -1,4 +1,14 @@
-from typing import Union, Callable, List, Tuple, Dict, Any
+from typing import Union, Callable, List, Tuple, Dict, Any, Sequence, Iterable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import numpy as np
+    
+    CandidatesType = Union[Sequence[str], Iterable[str], "pd.Series", "np.ndarray"]
+    QueriesType = Union[Sequence[str], Iterable[str], "pd.Series", "np.ndarray"]
+else:
+    CandidatesType = Any
+    QueriesType = Any
 
 from . import _fuzzybunny
 from ._fuzzybunny import (
@@ -15,7 +25,7 @@ from .benchmark import benchmark, benchmark_batch
 
 def rank(
     query: str, 
-    candidates: List[str], 
+    candidates: CandidatesType, 
     scorer: Union[str, Callable[[str, str], float]] = "levenshtein", 
     mode: str = "full", 
     process: bool = True, 
@@ -24,7 +34,7 @@ def rank(
     weights: Dict[str, float] = None
 ) -> List[Tuple[str, float]]:
     """
-    Enhanced rank function with support for Pandas Series and NumPy arrays.
+    Rank candidates against a query string. Supports List, NumPy arrays, and Pandas Series.
     """
     if weights is None:
         weights = {}
@@ -33,13 +43,16 @@ def rank(
     if _is_pandas_series(candidates):
         candidates = candidates.astype(str).tolist()
     elif _is_numpy_array(candidates):
-        candidates = candidates.astype(str).tolist()
+        import numpy as np
+        candidates = np.array(candidates).astype(str).tolist()
+    elif not isinstance(candidates, list):
+        candidates = list(candidates)
 
     return _fuzzybunny.rank(query, candidates, scorer, mode, process, threshold, top_n, weights)
 
 def batch_match(
-    queries: Union[List[str], Any], 
-    candidates: Union[List[str], Any], 
+    queries: QueriesType, 
+    candidates: CandidatesType, 
     scorer: Union[str, Callable[[str, str], float]] = "levenshtein", 
     mode: str = "full", 
     process: bool = True, 
@@ -48,7 +61,7 @@ def batch_match(
     weights: Dict[str, float] = None
 ) -> List[List[Tuple[str, float]]]:
     """
-    Enhanced batch_match function with support for Pandas/NumPy candidates.
+    Batch match multiple queries against candidates. Supports List, NumPy arrays, and Pandas Series.
     """
     if weights is None:
         weights = {}
@@ -56,12 +69,17 @@ def batch_match(
     if _is_pandas_series(candidates):
         candidates = candidates.astype(str).tolist()
     elif _is_numpy_array(candidates):
-        candidates = candidates.astype(str).tolist()
+        import numpy as np
+        candidates = np.array(candidates).astype(str).tolist()
+    elif not isinstance(candidates, list):
+        candidates = list(candidates)
 
     # queries can also be pandas/numpy
     if _is_pandas_series(queries) or _is_numpy_array(queries):
         import numpy as np
         queries = np.array(queries).astype(str).tolist()
+    elif not isinstance(queries, list):
+        queries = list(queries)
 
     return _fuzzybunny.batch_match(queries, candidates, scorer, mode, process, threshold, top_n, weights)
 

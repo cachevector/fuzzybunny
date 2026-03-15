@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Any, Union, Callable
+from typing import List, Tuple, Dict, Any, Union, Callable, Sequence
 
 def levenshtein(s1: str, s2: str) -> float: ...
 def partial_ratio(s1: str, s2: str) -> float: ...
@@ -10,7 +10,7 @@ def wratio(s1: str, s2: str) -> float: ...
 
 def rank(
     query: str,
-    candidates: List[str],
+    candidates: Sequence[str],
     scorer: Union[str, Callable[[str, str], float]] = "levenshtein",
     mode: str = "full",
     process: bool = True,
@@ -20,8 +20,8 @@ def rank(
 ) -> List[Tuple[str, float]]: ...
 
 def batch_match(
-    queries: List[str],
-    candidates: List[str],
+    queries: Sequence[str],
+    candidates: Sequence[str],
     scorer: Union[str, Callable[[str, str], float]] = "levenshtein",
     mode: str = "full",
     process: bool = True,
