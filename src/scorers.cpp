@@ -241,6 +241,9 @@ double token_sort_ratio(const std::u32string& s1, const std::u32string& s2) {
     auto t1 = tokenize(s1);
     auto t2 = tokenize(s2);
     
+    if (t1.empty() && t2.empty()) return 1.0;
+    if (t1.empty() || t2.empty()) return 0.0;
+
     std::sort(t1.begin(), t1.end());
     std::sort(t2.begin(), t2.end());
 
@@ -255,6 +258,87 @@ double token_sort_ratio(const std::u32string& s1, const std::u32string& s2) {
     }
 
     return levenshtein_ratio(joined1, joined2);
+}
+
+double token_set_ratio(const std::u32string& s1, const std::u32string& s2) {
+    auto t1 = tokenize(s1);
+    auto t2 = tokenize(s2);
+
+    if (t1.empty() && t2.empty()) return 1.0;
+    if (t1.empty() || t2.empty()) return 0.0;
+
+    std::set<std::u32string> set1(t1.begin(), t1.end());
+    std::set<std::u32string> set2(t2.begin(), t2.end());
+
+    std::vector<std::u32string> intersection;
+    std::set_intersection(set1.begin(), set1.end(),
+                          set2.begin(), set2.end(),
+                          std::back_inserter(intersection));
+
+    std::vector<std::u32string> diff1to2;
+    std::set_difference(set1.begin(), set1.end(),
+                        set2.begin(), set2.end(),
+                        std::back_inserter(diff1to2));
+
+    std::vector<std::u32string> diff2to1;
+    std::set_difference(set2.begin(), set2.end(),
+                        set1.begin(), set1.end(),
+                        std::back_inserter(diff2to1));
+
+    // Common part
+    std::u32string common;
+    for (size_t i = 0; i < intersection.size(); ++i) {
+        common += intersection[i];
+        if (i < intersection.size() - 1) common += ' ';
+    }
+
+    // Common + diff1
+    std::u32string s1_res = common;
+    if (!common.empty() && !diff1to2.empty()) s1_res += ' ';
+    for (size_t i = 0; i < diff1to2.size(); ++i) {
+        s1_res += diff1to2[i];
+        if (i < diff1to2.size() - 1) s1_res += ' ';
+    }
+
+    // Common + diff2
+    std::u32string s2_res = common;
+    if (!common.empty() && !diff2to1.empty()) s2_res += ' ';
+    for (size_t i = 0; i < diff2to1.size(); ++i) {
+        s2_res += diff2to1[i];
+        if (i < diff2to1.size() - 1) s2_res += ' ';
+    }
+
+    double r1 = levenshtein_ratio(common, s1_res);
+    double r2 = levenshtein_ratio(common, s2_res);
+    double r3 = levenshtein_ratio(s1_res, s2_res);
+
+    return std::max({r1, r2, r3});
+}
+
+double qratio(const std::u32string& s1, const std::u32string& s2) {
+    // Basic Levenshtein ratio
+    return levenshtein_ratio(s1, s2);
+}
+
+double wratio(const std::u32string& s1, const std::u32string& s2) {
+    double end_ratio = levenshtein_ratio(s1, s2);
+    
+    double len_ratio = static_cast<double>(std::max(s1.size(), s2.size())) / 
+                       (s2.empty() || s1.empty() ? 1.0 : static_cast<double>(std::min(s1.size(), s2.size())));
+
+    // If there is a big difference in lengths, we should use partial ratio
+    double partial_scale = 1.0;
+    if (len_ratio > 1.5) {
+        partial_scale = 0.9;
+    }
+
+    double partial = partial_ratio(s1, s2);
+    end_ratio = std::max(end_ratio, partial * partial_scale);
+
+    double token_sort = token_sort_ratio(s1, s2);
+    double token_set = token_set_ratio(s1, s2);
+    
+    return std::max({end_ratio, token_sort, token_set});
 }
 
 // Internal helper for ranking using pre-normalized strings
@@ -285,6 +369,12 @@ std::vector<MatchResult> rank_normalized(
             score = jaccard_similarity(uQuery, uCand);
         } else if (scorer == "token_sort") {
             score = token_sort_ratio(uQuery, uCand);
+        } else if (scorer == "token_set") {
+            score = token_set_ratio(uQuery, uCand);
+        } else if (scorer == "qratio") {
+            score = qratio(uQuery, uCand);
+        } else if (scorer == "wratio") {
+            score = wratio(uQuery, uCand);
         } else if (scorer == "hybrid") {
             double weighted_sum = 0.0;
             double total_weight = 0.0;
@@ -298,6 +388,12 @@ std::vector<MatchResult> rank_normalized(
                     sub_score = jaccard_similarity(uQuery, uCand);
                 } else if (name == "token_sort") {
                     sub_score = token_sort_ratio(uQuery, uCand);
+                } else if (name == "token_set") {
+                    sub_score = token_set_ratio(uQuery, uCand);
+                } else if (name == "qratio") {
+                    sub_score = qratio(uQuery, uCand);
+                } else if (name == "wratio") {
+                    sub_score = wratio(uQuery, uCand);
                 }
                 weighted_sum += sub_score * weight;
                 total_weight += weight;

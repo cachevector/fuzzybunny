@@ -12,6 +12,9 @@ double levenshtein_ratio(const std::u32string& s1, const std::u32string& s2);
 double partial_ratio(const std::u32string& s1, const std::u32string& s2);
 double jaccard_similarity(const std::u32string& s1, const std::u32string& s2);
 double token_sort_ratio(const std::u32string& s1, const std::u32string& s2);
+double token_set_ratio(const std::u32string& s1, const std::u32string& s2);
+double qratio(const std::u32string& s1, const std::u32string& s2);
+double wratio(const std::u32string& s1, const std::u32string& s2);
 
 // Ranking
 using MatchResult = std::pair<std::string, double>;

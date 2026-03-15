@@ -34,6 +34,18 @@ PYBIND11_MODULE(_fuzzybunny, m) {
         return token_sort_ratio(utf8_to_u32(s1), utf8_to_u32(s2));
     }, py::arg("s1"), py::arg("s2"), "Calculate Token Sort ratio (0.0 - 1.0)");
 
+    m.def("token_set", [](const std::string& s1, const std::string& s2) {
+        return token_set_ratio(utf8_to_u32(s1), utf8_to_u32(s2));
+    }, py::arg("s1"), py::arg("s2"), "Calculate Token Set ratio (0.0 - 1.0)");
+
+    m.def("qratio", [](const std::string& s1, const std::string& s2) {
+        return qratio(utf8_to_u32(s1), utf8_to_u32(s2));
+    }, py::arg("s1"), py::arg("s2"), "Calculate QRatio (0.0 - 1.0)");
+
+    m.def("wratio", [](const std::string& s1, const std::string& s2) {
+        return wratio(utf8_to_u32(s1), utf8_to_u32(s2));
+    }, py::arg("s1"), py::arg("s2"), "Calculate WRatio (0.0 - 1.0)");
+
     m.def("rank", &rank,
           py::arg("query"),
           py::arg("candidates"),

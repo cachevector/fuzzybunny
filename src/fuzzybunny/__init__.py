@@ -3,6 +3,9 @@ from ._fuzzybunny import (
     levenshtein,
     jaccard,
     token_sort,
+    token_set,
+    qratio,
+    wratio,
     partial_ratio,
 )
 
