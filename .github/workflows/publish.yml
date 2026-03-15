@@ -17,13 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: pip install virtualenv
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.21.3
         env:
           # Configure cibuildwheel
-          CIBW_SKIP: "pp* *-musllinux*" # Skip PyPy and Musl Linux to save time/space if not needed
+          CIBW_SKIP: "pp* *-musllinux*" # Skip PyPy and Musl Linux
           CIBW_ARCHS_MACOS: "x86_64 arm64" # Universal Mac support
-          # C++17 support verification
+          # Ensure dependencies are available
           CIBW_BEFORE_BUILD: "pip install pybind11"
 
       - uses: actions/upload-artifact@v4
