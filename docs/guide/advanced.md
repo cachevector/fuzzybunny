@@ -14,13 +14,36 @@ score = fuzzybunny.wratio("fuzzy bunny", "bunny fuzzy!!!")
 # 1.0 (Token sort/set will match and WRatio will pick the best)
 ```
 
+## Hybrid Scorer
+
+The `hybrid` scorer allows you to define a custom weighted average of multiple built-in algorithms. This is useful when you have specific data requirements that a single algorithm can't fully capture.
+
+To use it, set `scorer="hybrid"` and provide a `weights` dictionary in `rank` or `batch_match`.
+
+```python
+import fuzzybunny
+
+results = fuzzybunny.rank(
+    "fuzzy bunny", 
+    ["bunny fuzzy", "the fuzzy bunny", "rabbit"],
+    scorer="hybrid",
+    weights={
+        "levenshtein": 0.2,
+        "token_sort": 0.5,
+        "token_set": 0.3
+    }
+)
+```
+
+**Supported weight keys:** `levenshtein`, `jaccard`, `token_sort`, `token_set`, `qratio`, `wratio`.
+
 ## High-Performance Batch Matching
 
 When comparing many queries against a common candidate set, `batch_match` is the most efficient choice.
 
-It provides two major optimizations over calling `rank` in a loop:
-1.  **Multi-threading (OpenMP)**: Automatically distributes work across all CPU cores.
-2.  **Normalization Caching**: Normalizes the candidate set only once per batch.
+It provides two major optimizations:
+1.  **Normalization Caching**: In a standard loop, each candidate is normalized once per query. `batch_match` normalizes each candidate only once for the entire batch.
+2.  **Multi-threading (OpenMP)**: The C++ core uses OpenMP to parallelize the comparison loops across all available CPU cores.
 
 ```python
 import fuzzybunny
@@ -31,10 +54,13 @@ candidates = ["apple pie", "banana bread", "cherry tart", "apple turnover"]
 # Parallel matching
 results = fuzzybunny.batch_match(queries, candidates, top_n=2)
 
-# Results is a list where each element matches the corresponding query
-for i, res in enumerate(results):
-    print(f"Results for {queries[i]}: {res}")
+# results is a list of result lists
+# results[0] contains matches for "apple"
+# results[1] contains matches for "banana"
 ```
+
+!!! tip "Performance Hint"
+    Parallel execution is automatically triggered when the number of queries is greater than 5. It releases the Python GIL during the intensive matching loops, allowing for true multi-core utilization.
 
 ## Custom Python Scorers
 

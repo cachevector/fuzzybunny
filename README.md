@@ -17,14 +17,14 @@
 ## Features
 
 - **Blazing Fast**: C++ core for 2-5x speed improvement over pure Python alternatives.
-- **Multiple Scorers**: Support for Levenshtein, Jaccard, and Token Sort ratios.
-- **Partial Matching**: Find the best substring matches.
-- **Hybrid Scoring**: Combine multiple scorers with custom weights.
-- **Pandas & NumPy Integration**: Native support for Series and Arrays.
+- **Multiple Scorers**: Support for Levenshtein, Jaccard, Token Sort, Token Set, QRatio, WRatio, and Partial Ratio.
+- **Partial Matching**: Find the best substring matches using `mode="partial"`.
+- **Hybrid Scoring**: Combine multiple scorers with custom weights for complex matching tasks.
+- **Pandas & NumPy Integration**: Native support for Series and Arrays via a dedicated accessor.
 - **Batch Processing**: Parallelized matching for large datasets using OpenMP.
-- **Unicode Support**: Handles international characters and normalization.
-- **Benchmarking Tools**: Built-in utilities to measure performance.
-- **Thread Safe**: Releases the GIL in C++ for better multi-threading performance.
+- **Unicode Support**: Handles international characters and basic normalization.
+- **Benchmarking Tools**: Built-in utilities to measure and compare performance.
+- **Thread Safe**: Releases the GIL in C++ for optimal multi-threaded performance.
 - **Type Safe**: Includes PEP 561 type stubs for full IDE and MyPy support.
 
 ## Installation
@@ -51,7 +51,7 @@ results = fuzzybunny.rank("app", candidates, top_n=2)
 ## Advanced Usage
 
 ### Hybrid Scorer
-Combine different algorithms to get better results:
+Combine different algorithms using custom weights:
 
 ```python
 results = fuzzybunny.rank(
@@ -62,8 +62,19 @@ results = fuzzybunny.rank(
 )
 ```
 
+### Partial Matching
+Find the best substring match:
+
+```python
+score = fuzzybunny.partial_ratio("apple", "apple pie") # 1.0
+
+# Using rank with partial mode
+results = fuzzybunny.rank("apple", ["apple pie", "banana"], mode="partial")
+# [('apple pie', 1.0), ('banana', 0.18)]
+```
+
 ### Pandas Integration
-Use the specialized accessor for clean code:
+Use the specialized `fuzzy` accessor:
 
 ```python
 import pandas as pd

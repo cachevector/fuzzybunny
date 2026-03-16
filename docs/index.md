@@ -5,12 +5,13 @@ A high-performance, lightweight Python library for fuzzy string matching and ran
 ## Features
 
 - **Blazing Fast**: Optimized C++ core (Myers' Bit-Parallel algorithm) for superior performance.
-- **Multiple Scorers**: Support for Levenshtein, Jaccard, Token Sort, Token Set, QRatio, and WRatio.
-- **Partial Matching**: Find the best substring matches.
+- **Multiple Scorers**: Support for Levenshtein, Jaccard, Token Sort, Token Set, QRatio, WRatio, and Partial Ratio.
+- **Partial Matching**: Find the best substring matches using `mode="partial"`.
 - **Hybrid Scoring**: Combine multiple scorers with custom weights.
 - **Python Callbacks**: Use your own Python functions as scorers.
-- **Pandas & NumPy Integration**: Native support for Series and Arrays.
+- **Pandas & NumPy Integration**: Native support for Series and Arrays via a dedicated accessor.
 - **Parallelized**: Parallel matching for large datasets using OpenMP.
+- **Unicode Support**: Handles international characters and basic normalization.
 
 ## Quick Start
 
